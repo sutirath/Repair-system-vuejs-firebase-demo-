@@ -1,0 +1,317 @@
+<template>
+  <div>
+    <navbarsecond />
+    <br />
+    <div class="container">
+      <h1 class="text-center">จัดการสมาชิก</h1>
+      <br />
+      <div class="card text-left">
+        <div class="card-body">
+          <h3>เพิ่มสมาชิก</h3>
+          <br />
+          <form>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Email address</label>
+              <input type="email" class="form-control" aria-describedby="emailHelp" v-model="email" />
+            </div>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Password</label>
+              <input
+                type="password"
+                class="form-control"
+                aria-describedby="emailHelp"
+                v-model="password"
+              />
+              <div class="form-group row">
+                <label for="exampleFormControlInput1" class="col-sm-2 col-form-label">ชื่อ-นามสกุล</label>
+                <input
+                  type="form-control"
+                  class="form-control col-sm-9"
+                  id="exampleFormControlInput1"
+                  v-model="nameadd"
+                />
+              </div>
+              <div class="form-group">
+                <label for="exampleFormControlSelect1">สถานะ</label>
+                <select class="form-control" v-model="addstatus">
+                  <option>user</option>
+                  <option>domistf</option>
+                  <option>tnc</option>
+                  <option>admin</option>
+                </select>
+              </div>
+            </div>
+          </form>
+          <button type="submit" class="btn btn-primary" @click="adduser">บันทึก</button>
+        </div>
+      </div>
+      <br />
+      <div>
+        <v-card>
+          <v-card-title>
+            สมาชิก
+            <div class="flex-grow-1"></div>
+            <v-text-field v-model="search" label="Search" single-line hide-details></v-text-field>
+          </v-card-title>
+          <v-data-table
+            :headers="headers"
+            :items="user"
+            :search="search"
+            item-key="name"
+            class="elevation-1"
+            loading-text="ยังไม่มีรายการแจ้งซ่อม"
+            :page.sync="page"
+            :items-per-page="itemsPerPage"
+            :sort-by.sync="sortBy"
+            :sort-desc.sync="descending"
+            hide-default-footer
+            @page-count="pageCount = $event"
+          >
+            <template v-slot:top>
+              <v-dialog v-model="dialog" width="600px" height="600px">
+                <v-card>
+                  <v-card-title>
+                    <span class="headline">Edit</span>
+                  </v-card-title>
+
+                  <v-card-text>
+                    <v-container>
+                      <v-row>
+                        <v-col cols="12" sm="6" md="4">
+                          <v-text-field v-model="editedItem.name" label="ชื่อ"></v-text-field>
+                        </v-col>
+
+                        <v-col cols="12" sm="6" md="4">
+                          <v-text-field v-model="editedItem.email" label="email"></v-text-field>
+                        </v-col>
+
+                        <v-col class="d-flex" cols="12" sm="6" md="4">
+                          <v-select :items="status" v-model="editedItem.status"></v-select>
+                        </v-col>
+                      </v-row>
+                    </v-container>
+                  </v-card-text>
+
+                  <v-card-actions>
+                    <div class="flex-grow-1"></div>
+                    <v-btn color="blue darken-1" text @click="close">Cancel</v-btn>
+                    <v-btn color="blue darken-1" text @click="save">Save</v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-dialog>
+            </template>
+
+            <template v-slot:item.ustatus="{ item }">
+              <v-chip :color="getColor(item.ustatus)" dark>{{ item.ustatus }}</v-chip>
+            </template>
+
+            <template v-slot:item.id="{ item }">
+              <v-row>
+                <v-img
+                  @click="editItem(item)"
+                  src="@/assets/document.png"
+                  class="mr-2 img-fluid"
+                  max-width="30"
+                  max-height="30"
+                ></v-img>
+
+                <v-img
+                  @click="remove(item)"
+                  src="@/assets/x.png"
+                  class="mr-2 img-fluid"
+                  max-width="30"
+                  max-height="30"
+                ></v-img>
+              </v-row>
+            </template>
+          </v-data-table>
+        </v-card>
+        <div class="text-center pt-2">
+          <v-pagination v-model="page" :length="pageCount"></v-pagination>
+          <v-text-field
+            :value="itemsPerPage"
+            label="Items per page"
+            type="number"
+            min="-1"
+            max="15"
+            @input="itemsPerPage = parseInt($event, 10)"
+          ></v-text-field>
+        </div>
+      </div>
+    </div>
+    <br />
+    <br />
+    <footer id="sticky-footer " class="py-4 bg-dark text-white-50">
+      <div class="container text-center">
+        <small>Copyright 2019 &copy; ระบบการแจ้งซ่อมวัสดุ-ครุภัณฑ์ (สำหรับหอพัก)</small>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<script>
+import { db } from "@/main";
+import firebase from "firebase";
+import navbarsecond from "@/components/navsecond";
+export default {
+  data() {
+    return {
+      user: [],
+      email: "",
+      password: "",
+      nameadd: "",
+      addstatus: "",
+
+      status: ["user", "admin", "tnc", "domistf"],
+      page: 1,
+      pageCount: 0,
+      itemsPerPage: 10,
+      dialog: false,
+      search: "",
+      sortBy: "time",
+      descending: true,
+      headers: [
+        {
+          text: "ชื่อผู้ใช้",
+          align: "left",
+          sortable: false,
+          value: "name"
+        },
+        { text: "uid", value: "uid" },
+        { text: "email", value: "email" },
+        { text: "สถานะ", value: "ustatus" },
+        { text: "Actions", value: "id", sortable: false }
+      ],
+      editedIndex: -1,
+      editid: "",
+
+      editedItem: {
+        name: "",
+        eamil: "",
+        status: ""
+      },
+      getuid: ""
+    };
+  },
+  created() {
+    /////////////getdata/////////////
+    db.collection("users").onSnapshot(snapshot => {
+      snapshot.forEach(doc => {
+        // console.log(doc.id, " => ", doc.data());
+
+        this.user.push({
+          id: doc.id,
+          name: doc.data().name,
+          email: doc.data().email,
+          uid: doc.data().uid,
+          ustatus: doc.data().ustatus
+        });
+      });
+    });
+  },
+  methods: {
+    getColor(ustatus) {
+      if (ustatus === "user") return "#33cc33";
+      else if (ustatus === "tnc") return "#ff9900";
+      else if (ustatus === "admin") return "#0066ff";
+      else if (ustatus === "domistf") return "#ff3300";
+      else return "#ffffff";
+    },
+    editItem(item) {
+      this.editedIndex = this.user.indexOf(item);
+      this.editedItem = Object.assign({}, item);
+
+      this.editid = item.id;
+      console.log(item.id);
+
+      this.dialog = true;
+    },
+
+    close() {
+      this.dialog = false;
+      setTimeout(() => {
+        this.editedItem = Object.assign({}, this.defaultItem);
+        this.editedIndex = -1;
+      }, 300);
+    },
+
+    save() {
+      this.user = [];
+      var updateRef = db.collection("users").doc(this.editid);
+      return updateRef
+        .update({
+          name: this.editedItem.name,
+          email: this.editedItem.email,
+          ustatus: this.editedItem.status
+        })
+        .then(() => {
+          console.log("Document successfully updated!");
+          alert("Success");
+          this.close();
+          window.location.reload();
+        })
+        .catch(error => {
+          console.error("Error updating document: ", error);
+        });
+    },
+    remove(item) {
+      this.user = [];
+      db.collection("users")
+        .doc(item.id)
+        .delete()
+        .then(function() {
+          alert("Delete Success");
+          console.log("Document successfully deleted!");
+        })
+        .catch(function(error) {
+          console.error("Error removing document: ", error);
+        });
+    },
+    adduser() {
+      this.user = [];
+      firebase
+        .auth()
+        .createUserWithEmailAndPassword(this.email, this.password)
+        .then(data => {
+          console.log("uid", data.user.uid);
+
+          this.getuid = data.user.uid;
+          this.dbuser();
+        })
+        .catch(function(error) {
+          //Handle error
+        });
+    },
+
+    dbuser() {
+      db.collection("users")
+        .doc(this.getuid)
+        .set({
+          name: this.nameadd,
+          email: this.email,
+          uid: this.getuid,
+          ustatus: this.addstatus
+        })
+        .then(function() {
+          console.log("Document successfully written!");
+          alert("Success");
+        })
+        .catch(function(error) {
+          console.error("Error writing document: ", error);
+        });
+    }
+  },
+  watch: {
+    dialog(val) {
+      val || this.close();
+    }
+  },
+
+  components: {
+    navbarsecond
+  }
+};
+</script>
+
+<style>
+</style>
