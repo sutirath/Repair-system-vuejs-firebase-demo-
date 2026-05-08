@@ -19,7 +19,7 @@
     "firestore": "^1.1.6",
     "http2": "^3.3.7",
     "moment": "^2.24.0",
-    "vue": "^2.6.10",
+    "vue": "^3.0.0",
     "vue-firestore": "^0.3.22",
     "vue-google-charts": "^0.3.2",
     "vue-router": "^3.0.3",
